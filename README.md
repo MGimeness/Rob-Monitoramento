@@ -1,4 +1,4 @@
-# 🤖 Painel Robô de Monitoramento
+# 🤖 Robô de Monitoramento
 
 Aplicação desenvolvida em Python para automação e monitoramento de tarefas, projetada para otimizar processos de acompanhamento e envio de alertas/notificações.
 
