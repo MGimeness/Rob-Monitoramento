@@ -1,43 +1,74 @@
 # Robô de Monitoramento
 
-Painel desktop em Python que automatiza a rotina de monitoramento de plantões: lê as planilhas da equipe no Google Drive, confere os plantões com os dados de uma plataforma via API REST e automatiza o envio das mensagens de confirmação aos profissionais, reduzindo tarefas manuais e o tempo de resposta.
+Painel desktop (Windows) para automatizar disparos de monitoramento, cobranças de confirmação e atualização de plantões em uma plataforma de monitoramento via API.
 
-> **Versão para portfólio.** Este repositório não contém dados reais: IDs de planilha, URLs internas, tokens e textos da empresa foram removidos e ficam em um arquivo de configuração local (`config.json`), que **não** é enviado ao GitHub.
+> ⚠️ Projeto de uso interno. Lida com dados de pacientes e credenciais: **nunca** versione `config.json`, `credentials.json`, `token.json`, `api_token.txt` ou logs.
 
-## O que o projeto faz
+## Funcionalidades
 
-- **Leitura de planilhas:** baixa planilhas do Google Drive (Google Drive API com OAuth 2.0) e trata os dados com `pandas`.
-- **Conferência de plantões:** normaliza nomes e turnos (diurno/noturno), compara a planilha com os dados da plataforma e identifica pendências e divergências.
-- **Integração via API REST:** consome a API da plataforma com autenticação por token (`requests`), incluindo leitura tolerante a falhas e log em arquivo.
-- **Envio de mensagens:** automatiza o envio das confirmações de plantão com `PyAutoGUI` e `pyperclip`, com atalho de emergência para pausar/parar.
-- **Interface gráfica:** painel com abas, tema escuro e logs em tempo real, feito com `CustomTkinter`; as tarefas longas rodam em threads para não travar a tela.
+O painel lê uma planilha privada do Google Drive (uma aba por convênio) e é dividido em 3 abas:
 
-## Tecnologias
+### 1. Disparos de Monitoramento
+Envia, pelo WhatsApp Desktop, a mensagem diária de monitoramento para os grupos/pacientes ativos.
 
-Python, pandas, openpyxl, requests, CustomTkinter, PyAutoGUI, pyperclip, Google Drive API (OAuth 2.0), threading.
+- Você escolhe os convênios (abas da planilha) e carrega a lista de pacientes com status ativo.
+- A mensagem muda conforme o tipo de plantão (PAD) de cada paciente:
+  - **Diurno de amanhã**
+  - **Noturno de hoje**
+  - **Diurno e Noturno (24h)**
+  - **SSA**, com texto próprio.
+- Entende regras de **dia par/ímpar** no campo PAD (ex.: "Noturno par / Diurno ímpar") e pula quem não tem plantão naquele dia.
+- Ignora grupos bloqueados definidos no `config.json`.
+- A automação busca o contato pelo nome, cola a mensagem e envia. Há 5 segundos de contagem para focar o WhatsApp.
+- Pausa de forma segura se o mouse for movido ou ESC/Espaço for pressionado.
+- Mostra tabela com status por paciente (pendente, enviando, enviado, erro), indicadores e botão para atualizar a planilha sem reiniciar.
 
-## Como usar
+### 2. Confirmações e Cobranças
+Cobra no WhatsApp os plantões que ainda estão **PENDENTES** na planilha.
 
-1. Instale as dependências:
+- Procura a coluna do **Noturno de hoje** e a do **Diurno de amanhã** e lista só os pacientes ativos com a palavra "PENDENTE" em um desses turnos.
+- Monta a mensagem de cobrança só com os turnos pendentes de cada paciente.
+- Pula conversas com mensagem não lida, para não atropelar uma resposta em andamento.
+- Usa o mesmo mecanismo de envio, pausa de segurança, tabela de status e atualização da planilha da aba 1.
+- Avisa quando a coluna da data não é encontrada na planilha.
+
+### 3. Atualização Command Center
+Cruza a planilha com a plataforma de monitoramento (API) e **confirma os plantões automaticamente**, sem digitar no painel web.
+
+- Você escolhe a data, o convênio e o turno (Diurno, Noturno ou Ambos).
+- Para cada paciente, lê o profissional escalado na planilha e localiza o plantão correspondente na API (por nome do paciente, turno e horário).
+- Só confirma quando o **profissional da planilha confere com o do painel**. Tolera acentos, nomes do meio omitidos e pequenos erros de digitação.
+- Regras de proteção:
+  - Plantão **diurno com "cobertura"** não é confirmado.
+  - Célula vazia ou "PENDENTE" não é confirmada.
+  - Plantões já confirmados são ignorados.
+  - Duplicidades confirmam só um registro.
+- Após o envio, **confere no servidor** se a confirmação realmente valeu.
+- Opcionalmente, define o usuário logado como **responsável de monitoramento** nos plantões que seguem não confirmados. Plantões de profissionais COOP, escalista ou Social Saúde, ou que já têm outro responsável, não são alterados.
+- O token de acesso pode ser colado ou obtido automaticamente via navegador (Playwright).
+- Mostra detalhes por linha (duplo clique), registra tudo em `command_center_log.txt` e exibe um balanço final.
+
+> A aba 3 usa uma API interna de uma plataforma de terceiros. Use apenas com autorização e para fins internos.
+
+## Requisitos
+
+- **Windows** (usa `os.startfile` e o WhatsApp Desktop)
+- Python 3.10 ou superior
+- WhatsApp Desktop instalado e logado
+- Conta Google com acesso à planilha
+- Microsoft Edge ou Google Chrome (para obter o token automaticamente na aba 3)
+
+## Instalação
+
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/MGimeness/Rob-Monitoramento.git
+   cd Rob-Monitoramento
+   ```
+
+2. Instale as dependências:
    ```bash
    pip install -r requirements.txt
    ```
-2. Crie o arquivo de configuração a partir do exemplo:
-   ```bash
-   cp config.exemplo.json config.json
-   ```
-   e preencha `id_planilha`, `api_base_url`, `site_url`, `cookie_token` e `grupos_bloqueados`.
-3. Crie as credenciais do Google (OAuth, tipo "app para computador") no Google Cloud Console e salve o arquivo como `credentials.json` na pasta do projeto. Na primeira execução será aberta uma janela para você autorizar o acesso (somente leitura ao Drive).
-4. Informe o token da API pela variável de ambiente `API_TOKEN`, pelo arquivo `api_token.txt` ou direto na interface.
-5. Execute:
-   ```bash
-   python painel_robo.pyw
-   ```
 
-## Segurança
-
-Os arquivos `config.json`, `credentials.json`, `token.json`, `api_token.txt`, logs e planilhas estão no `.gitignore`. Nunca envie esses arquivos ao repositório.
-
-## Autora
-
-Michele Samara Cerqueira Gimenes, [github.com/MGimeness](https://github.com/MGimeness)
+   Conteúdo sugerido do `requirements.txt`:
