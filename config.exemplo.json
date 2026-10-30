@@ -1,0 +1,7 @@
+{
+  "id_planilha": "COLE_AQUI_O_ID_DA_PLANILHA_DO_GOOGLE_DRIVE",
+  "api_base_url": "https://sua-api.exemplo.com/monitoring",
+  "site_url": "https://seu-painel.exemplo.com/",
+  "cookie_token": "token",
+  "grupos_bloqueados": ["GRUPO INTERNO 1", "GRUPO INTERNO 2"]
+}

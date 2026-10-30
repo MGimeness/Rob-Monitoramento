@@ -1,0 +1,11 @@
+pandas
+openpyxl
+customtkinter
+pyautogui
+pyperclip
+requests
+keyboard
+playwright
+google-auth
+google-auth-oauthlib
+google-api-python-client
